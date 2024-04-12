@@ -10,7 +10,6 @@ class BasicConv(nn.Module):
                  out_channel :int, 
                  kernel_size :int, 
                  stride :int, 
-                 activation_fun :str, 
                  bias=True, 
                  norm=False, 
                  transpose=False):
@@ -20,9 +19,7 @@ class BasicConv(nn.Module):
         
         padding = kernel_size // 2
         layers = list()
-        if activation_fun != None:
-            act_fn = utility.get_activation_function(activation_fun)
-            layers.append(act_fn)
+
         if transpose:
             padding = kernel_size // 2 - 1
             layers.append(nn.ConvTranspose2d(in_channle, out_channel, kernel_size, padding=padding, stride=stride, bias=bias))
@@ -35,19 +32,66 @@ class BasicConv(nn.Module):
         
     def forward(self, x):
         return self.main(x)
+
+class NoiseBlock(nn.Module):
+    def __init__(self, activation_function="swish") -> None:
+        super(NoiseBlock, self).__init__()
+        self.activation_fn = utility.get_activation_function(activation_function)
+
         
-class ResBlock(nn.Module):
-    def __init__(self, in_channel, out_channel, activation_function="relu",norm=False) -> None:
-        super(ResBlock, self).__init__()
         self.main = nn.Sequential(
-            BasicConv(in_channel, out_channel, kernel_size=3, stride=1, activation_fun=activation_function, norm=norm),
-            BasicConv(in_channel, out_channel, kernel_size=3, stride=1, activation_fun=activation_function, norm=norm)
+            #Position embeding
+            self.activation_fn
+            #MLP
         )
-        
+
     def forward(self, x):
         return self.main(x)
 
-class Guided_ResBlock(nn.Module):
-    def __init__(self, *args, **kwargs) -> None:
-        super(Guided_ResBlock, self).__init__()
+class ResBlock(nn.Module):
+    def __init__(self, in_channel, out_channel, activation_function="swish",norm=False) -> None:
+        super(ResBlock, self).__init__()
+        self.activation_fn = utility.get_activation_function(activation_function)
         
+        self.main = nn.Sequential(
+            self.activation_fn,
+            BasicConv(in_channel, out_channel, kernel_size=3, stride=1, norm=norm),
+            self.activation_fn,
+            BasicConv(out_channel, out_channel, kernel_size=3, stride=1, norm=norm)
+        )
+        
+    def forward(self, x):
+        return self.main(x) + x   
+
+class Diffusion_ResBlock(nn.Module):
+    def __init__(self, in_channel, out_channel, activation_function="swish",norm=False) -> None:
+        super(Diffusion_ResBlock, self).__init__()
+        self.activation_fn = utility.get_activation_function(activation_function)
+        
+        self.main = nn.Sequential(
+            self.activation_fn,
+            BasicConv(in_channel, out_channel, kernel_size=3, stride=1, norm=norm),
+            #Noise block
+            self.activation_fn,
+            BasicConv(out_channel, out_channel, kernel_size=3, stride=1, norm=norm)
+        )
+        
+    def forward(self, x):
+        return self.main(x) + x
+
+class Guided_Diffusion_ResBlock(nn.Module):
+    def __init__(self, in_channel, out_channel, activation_function="swish", norm=False) -> None:
+        super(Guided_Diffusion_ResBlock, self).__init__()
+        self.activation_fn = utility.get_activation_function(activation_function)
+
+        self.main = nn.Sequential(
+            #concat guidance
+            self.activation_fn,
+            BasicConv(in_channel, out_channel, kernel_size=3, stride=1, norm=norm),
+            #concat duidance + Noise block
+            self.activation_fn,
+            BasicConv(out_channel, out_channel, kernel_size=3, stride=1, norm=norm)
+          
+        )
+    def forward(self, x):
+        return self.main(x) + x

@@ -21,12 +21,12 @@ class Guidance(nn.Module):
         
         self.to_grayscale = transforms.Grayscale()
         self.downsamlping
-        self.conv_start = layers.BasicConv(in_channel, base_channel, kernel_size=3, stride=1, activation_fun=None)
+        self.conv_start = layers.BasicConv(in_channel, base_channel, kernel_size=3, stride=1) #conv 3x3
         self.ResBlock_1 = layers.ResBlock()
         self.ResBlock_2 = layers.ResBlock()
         self.ResBlock_3 = layers.ResBlock()
         self.ResBlock_4 = layers.ResBlock()
-        self.conv_end = layers.BasicConv(in_channel, base_channel, kernel_size=3, stride=1, activation_fun=None)
+        self.conv_end = layers.BasicConv(in_channel, base_channel, kernel_size=3, stride=1) #conv 3x3
     
     def forward(self, input):
         x = self.to_grayscale(input)
