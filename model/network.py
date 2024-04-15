@@ -105,6 +105,3 @@ class XYDeblur(nn.Module): #baseline1
         output.append(x_final)
         
         return output
-
-def build_net():
-    return XYDeblur()

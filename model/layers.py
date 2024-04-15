@@ -15,7 +15,6 @@ import utility
 
 AttentionConfig = namedtuple('AttentionConfig', ['enable_flash', 'enable_math', 'enable_mem_efficient'])
 ModelPrediction =  namedtuple('ModelPrediction', ['pred_noise', 'pred_x_start'])
-print_once = utility.once(print)
 
 
 def Upsample(dim, dim_out=None):
@@ -99,10 +98,8 @@ class Attend(nn.Module):
         device_properties = torch.cuda.get_device_properties(torch.device('cuda'))
 
         if device_properties.major == 8 and device_properties.minor == 0:
-            print_once('A100 GPU detected, using flash attention if input tensor is on cuda')
             self.cuda_config = AttentionConfig(True, False, False)
         else:
-            print_once('Non-A100 GPU detected, using math or mem efficient attention if input tensor is on cuda')
             self.cuda_config = AttentionConfig(False, True, True)
 
     def flash_attn(self, q, k, v):
@@ -329,7 +326,19 @@ class Guided_Diffusion_ResBlock(nn.Module):
     def forward(self, x):
         return self.main(x) + x
     
-    
+
+class XYDeblur_Resblock(nn.Module):
+    def __init__(self, in_channel, out_channel, norm=False) -> None:
+        super(XYDeblur_Resblock, self).__init__()
+        self.main = nn.Sequential(
+            BasicConv(in_channel, out_channel, kernel_size=3, stride=1, norm=norm),
+            nn.ReLU(inplace=True),
+            BasicConv(out_channel, out_channel, kernel_size=3, stride=1, norm=norm)
+        )
+
+    def forward(self, x):
+        return self.main(x) + x
+   
     
 class XYDeblur_EBlock(nn.Module):
     def __init__(self, in_channel, out_channel, num_res=8, norm=False, first=False):
@@ -341,7 +350,7 @@ class XYDeblur_EBlock(nn.Module):
             layers = [BasicConv(in_channel,out_channel,kernel_size=3,stride=2),
                       nn.ReLU(inplace=True)]
         
-        layers += [ResBlock(out_channel, out_channel, activation_function='Relu', norm=norm) for _ in range(num_res)]
+        layers += [XYDeblur_Resblock(out_channel, out_channel, norm) for _ in range(num_res)]
         self.layers = nn.Sequential(*layers)
         
     def forward(self, x):
@@ -351,7 +360,7 @@ class XYDeblur_DBlock(nn.Module):
     def __init__(self, channel, num_res=8, norm=False, last=False, feature_ensemble=False):
         super(XYDeblur_DBlock, self).__init__()
 
-        layers = [ResBlock(channel, channel, 'Relu', norm) for _ in range(num_res)]
+        layers = [XYDeblur_Resblock(channel, channel, norm) for _ in range(num_res)]
 
         if last:
             if feature_ensemble == False:
