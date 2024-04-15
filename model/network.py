@@ -20,7 +20,6 @@ class Guidance(nn.Module):
         base_channel = 32
         
         self.to_grayscale = transforms.Grayscale()
-        self.downsamlping
         self.conv_start = layers.BasicConv(in_channel, base_channel, kernel_size=3, stride=1) #conv 3x3
         self.ResBlock_1 = layers.ResBlock()
         self.ResBlock_2 = layers.ResBlock()
@@ -28,8 +27,12 @@ class Guidance(nn.Module):
         self.ResBlock_4 = layers.ResBlock()
         self.conv_end = layers.BasicConv(in_channel, base_channel, kernel_size=3, stride=1) #conv 3x3
     
+    def downsampling(self, dim, dim_out):
+        return layers.Downsample(dim, dim_out)
+    
     def forward(self, input):
         x = self.to_grayscale(input)
+        x = self.downsampling()
         x = self.conv_start(x)
         
         return x
