@@ -328,3 +328,39 @@ class Guided_Diffusion_ResBlock(nn.Module):
         )
     def forward(self, x):
         return self.main(x) + x
+    
+    
+    
+class XYDeblur_EBlock(nn.Module):
+    def __init__(self, in_channel, out_channel, num_res=8, norm=False, first=False):
+        super(XYDeblur_EBlock, self).__init__()
+        if first:
+            layers = [BasicConv(in_channel, out_channel, kernel_size=3,norm=norm, stride=1),
+                      nn.ReLU(inplace=True)]
+        else:
+            layers = [BasicConv(in_channel,out_channel,kernel_size=3,stride=2),
+                      nn.ReLU(inplace=True)]
+        
+        layers += [ResBlock(out_channel, out_channel, activation_function='Relu', norm=norm) for _ in range(num_res)]
+        self.layers = nn.Sequential(*layers)
+        
+    def forward(self, x):
+        return self.layers(x)
+    
+class XYDeblur_DBlock(nn.Module):
+    def __init__(self, channel, num_res=8, norm=False, last=False, feature_ensemble=False):
+        super(XYDeblur_DBlock, self).__init__()
+
+        layers = [ResBlock(channel, channel, 'Relu', norm) for _ in range(num_res)]
+
+        if last:
+            if feature_ensemble == False:
+                layers.append(BasicConv(channel, 3, kernel_size=3, norm=norm, relu=False, stride=1))
+        else:
+            layers.append(BasicConv(channel, channel // 2, kernel_size=4, norm=norm, stride=2, transpose=True))
+            layers.append(nn.ReLU(inplace=True))
+
+        self.layers = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.layers(x)
