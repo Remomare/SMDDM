@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     # Directories
     parser.add_argument('--model_name', type=str, default='XYDeblur')
-    parser.add_argument('--data_dir', type=str, default='./sample_data')
+    parser.add_argument('--data_dir', type=str, default='./dataset')
     
     # Train
     parser.add_argument('--batch_size', type=int, default=4)
