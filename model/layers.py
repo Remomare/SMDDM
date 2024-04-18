@@ -229,7 +229,7 @@ class Attention(nn.Module):
         
 class BasicConv(nn.Module):
     def __init__(self, 
-                 in_channle :int, 
+                 in_channel :int, 
                  out_channel :int, 
                  kernel_size :int, 
                  stride :int, 
@@ -245,9 +245,9 @@ class BasicConv(nn.Module):
 
         if transpose:
             padding = kernel_size // 2 - 1
-            layers.append(nn.ConvTranspose2d(in_channle, out_channel, kernel_size, padding=padding, stride=stride, bias=bias))
+            layers.append(nn.ConvTranspose2d(in_channel, out_channel, kernel_size, padding=padding, stride=stride, bias=bias))
         else:
-            layers.append(nn.Conv2d(in_channle, out_channel, kernel_size, padding=padding, stride=stride, bias=bias))
+            layers.append(nn.Conv2d(in_channel, out_channel, kernel_size, padding=padding, stride=stride, bias=bias))
         if norm:
             layers.append(nn.BatchNorm2d(out_channel))
             
@@ -263,10 +263,10 @@ class NoiseBlock(nn.Module):
         super(NoiseBlock, self).__init__()
         self.activation_fn = utility.get_activation_function(activation_function)
         
-        #guissian noise 
+        #gaussian noise 
         
         self.main = nn.Sequential(
-            #Position embeding
+            #Position embedding
             self.activation_fn, #swish
             nn.Linear(time_emb_dim, dim_out * 2)#MLP
         )
@@ -318,7 +318,7 @@ class Guided_Diffusion_ResBlock(nn.Module):
             #concat guidance
             self.activation_fn,
             BasicConv(in_channel, out_channel, kernel_size=3, stride=1, norm=norm),
-            #concat duidance + Noise block
+            #concat guidance + Noise block
             self.activation_fn,
             BasicConv(out_channel, out_channel, kernel_size=3, stride=1, norm=norm)
           

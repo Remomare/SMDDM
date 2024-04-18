@@ -2,7 +2,7 @@ import os
 import torch
 from torchvision.transforms import functional as F
 import numpy as np
-from utils import Adder, calculate_psnr
+from utils import Adder
 from data.data_load import test_dataloader
 from utils import EvalTimer
 from skimage.metrics import peak_signal_noise_ratio
