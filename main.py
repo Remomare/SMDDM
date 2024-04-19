@@ -19,7 +19,7 @@ def main(config):
     if not os.path.exists(config.result_dir):
         os.makedirs(config.result_dir)
 
-    if config.model == 'XYDeblur':
+    if config.model_name == 'XYDeblur':
         model = XYDeblur()
         if torch.cuda.is_available():
             model.cuda()
@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
     # Test
     parser.add_argument('--test_model', type=str, default='pretrained_model.pkl')
-    parser.add_argument('--mode', type=str, default='test')
+    parser.add_argument('--mode', type=str, default='train')
 
     config = parser.parse_args()
     config.model_save_dir = os.path.join('results/', config.model_name, 'weights/')

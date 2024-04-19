@@ -32,7 +32,7 @@ class PairCompose(transforms.Compose):
         return image, label
 
 
-class PairRandomHorizontalFilp(transforms.RandomHorizontalFlip):
+class PairRandomHorizontalFlip(transforms.RandomHorizontalFlip):
     def __call__(self, img, label):
         """
         Args:

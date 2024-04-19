@@ -9,7 +9,7 @@ from collections import namedtuple
 from einops import rearrange, reduce, repeat
 from einops.layers import torch as einops_torch
 
-import utility 
+from . import utility 
 
 # constants
 

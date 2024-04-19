@@ -2,7 +2,7 @@ import os
 import torch
 import numpy as np
 from PIL import Image as Image
-from data_augment import PairCompose, PairRandomCrop, PairRandomHorizontalFlip, PairToTensor
+from data import data_augment 
 from torchvision.transforms import functional as F
 from torch.utils.data import Dataset, DataLoader
 
@@ -11,11 +11,11 @@ def train_dataloader(path, batch_size=64, num_workers=0, use_transform=True):
     # TODO: Add transform
     transform = None
     if use_transform:
-        transform = PairCompose(
+        transform = data_augment.PairCompose(
             [
-                PairRandomCrop(256),
-                PairRandomHorizontalFlip(),
-                PairToTensor()
+                data_augment.PairRandomCrop(256),
+                data_augment.PairRandomHorizontalFlip(),
+                data_augment.PairToTensor()
             ]
         )
     dataloader = DataLoader(

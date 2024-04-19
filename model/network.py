@@ -2,15 +2,32 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 
-import layers
+from model import layers
 
-class Unet_encoder(nn.Module):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-    
-class Unet_decoder(nn.Module):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+class Unet_DDPM(nn.Module):
+    def __init__(self,
+                 dim,
+                 init_dim = None,
+                 out_dim = None,
+                 dim_mults = (1,2,4,8),
+                 channels = 3,
+                 self_condition = False,
+                 resnet_block_groups = 8,
+                 learned_variance = False,
+                 learned_sinusoidal_cond = False,
+                 random_fourier_features = False,
+                 learned_sinusoidal_dim = 16,
+                 sinusoidal_pos_emb_theta = 10000,
+                 attn_dim_head = 32,
+                 attn_heads = 4,
+                 full_attn = None,    # defaults to full attention only for inner most layer
+                 flash_attn = False
+                 ) -> None:
+        super(Unet_DDPM, self).__init__()
+        
+        self.channels = channels
+        self.self_condition = self_condition
+        
 
 
 class Guidance(nn.Module):
@@ -62,7 +79,7 @@ class XYDeblur(nn.Module): #baseline1
         self.Decoder1_1 = layers.XYDeblur_DBlock(base_channel * 4, num_res_DEC, norm=False)
         self.Decoder1_2 = layers.XYDeblur_DBlock(base_channel * 2, num_res_DEC, norm=False)
         self.Decoder1_3 = layers.XYDeblur_DBlock(base_channel, num_res_DEC, last=True, feature_ensemble=True)
-        self.Decoder1_4 = layers.BasicConv(base_channel, 3, kernel_size=3, relu=False, stride=1)
+        self.Decoder1_4 = layers.BasicConv(base_channel, 3, kernel_size=3, stride=1)
 
 
     def forward(self, x):
