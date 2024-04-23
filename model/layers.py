@@ -292,39 +292,61 @@ class ResBlock(nn.Module):
 
 
 class Diffusion_ResBlock(nn.Module):
-    def __init__(self, in_channel, out_channel, activation_function="swish",norm=False):
-        super(Diffusion_ResBlock, self).__init__()
-        self.activation_fn = utility.get_activation_function(activation_function)
+    def __init__(self, dim, dim_out, *, time_emb_dim = None):
+        super().__init__()
+        self.mlp = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(time_emb_dim, dim_out * 2)
+        ) if utility.exists(time_emb_dim) else None
+
+        base_channel = 32
+
+        self.block1 = BasicConv(dim, dim_out, kernel_size=3, stride=1)
+        self.activation = nn.SiLU(inplace=True)
         
-        self.main = nn.Sequential(
-            self.activation_fn, #swish
-            BasicConv(in_channel, out_channel, kernel_size=3, stride=1, norm=norm), # conv 3x3
-            #Noise block
-            self.activation_fn, #swish
-            BasicConv(out_channel, out_channel, kernel_size=3, stride=1, norm=norm) # conv 3x3
-        )
+        self.guidance_conv = BasicConv(base_channel*4, base_channel, kernel_size=1, stride=1)
+
+    def forward(self, x, guidance = None , time_emb = None):
+
+        scale_shift = None
+        if utility.exists(self.mlp) and utility.exists(time_emb):
+            time_emb = self.mlp(time_emb)
+            time_emb = rearrange(time_emb, 'b c -> b c 1 1')
+            scale_shift = time_emb.chunk(2, dim = 1)
+
+        if guidance is not None:
+            guide = self.guidance_conv(guidance)
+            x = x + guide
         
-    def forward(self, x):
-        return self.main(x) + x
+        x = self.activation(x)
+        
+        h = self.block1(x)
+        if utility.exists(scale_shift):
+            scale, shift = scale_shift
+            h = h * (scale + 1) + shift
+
+        return h
 
 
 class Guided_Diffusion_ResBlock(nn.Module):
     def __init__(self, 
-                 in_channel, out_channel, activation_function="swish", norm=False):
+                 in_channel, out_channel, attn_channel, activation_function="swish", norm=False):
         super(Guided_Diffusion_ResBlock, self).__init__()
         self.activation_fn = utility.get_activation_function(activation_function)
 
-        self.main = nn.Sequential(
-            #concat guidance
-            self.activation_fn,
-            BasicConv(in_channel, out_channel, kernel_size=3, stride=1, norm=norm),
-            #concat guidance + Noise block
-            self.activation_fn,
-            BasicConv(out_channel, out_channel, kernel_size=3, stride=1, norm=norm)
+        base_channel = 32
+        
+        self.guidance_conv = BasicConv(base_channel*4, base_channel, kernel_size=1, stride=1)
+        self.conv_1 = BasicConv(in_channel + base_channel, out_channel, kernel_size=3, stride=1, norm=norm),
+        self.conv_2 = BasicConv(out_channel + base_channel + attn_channel, out_channel, kernel_size=3, stride=1, norm=norm)
           
-        )
-    def forward(self, x):
-        return self.main(x) + x
+    def forward(self, input, guidance):
+        guidances = self.guidance_conv(guidance)
+        x = input + guidances
+        x = self.activation_fn(x)
+        x = self.conv_1(x)
+        x + x
+        return 
     
 
 class XYDeblur_Resblock(nn.Module):

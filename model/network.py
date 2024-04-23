@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 
+import math
+
 from torch.cuda.amp import autocast
 from tqdm.auto import tqdm
 from random import random
@@ -43,7 +45,7 @@ class Unet_DDPM(nn.Module):
         dims = [init_dim, *map(lambda m: dim * m, dim_mults)]
         in_out = list(zip(dims[:-1], dims[1:]))
         
-        block_klass = utility.partial(layers.ResBlock ,groups = resnet_block_groups)
+        block_klass = partial(layers.ResBlock ,groups = resnet_block_groups)
         
         time_dim = dim * 4
         
@@ -513,34 +515,44 @@ class GaussianDiffusion(nn.Module):
 
 class Guidance(nn.Module):
     def __init__(self,
-                 dim,
-                 dim_out) -> None:
+                 downsample_factor) -> None:
         super(Guidance, self).__init__()
         
-        self.dim = dim
-        self.dim_out = dim_out
+        self.dim = 1
+        self.downs = int(math.log2(downsample_factor))
         
         in_channel = 1
         base_channel = 32
         
         self.to_grayscale = transforms.Grayscale()
         self.conv_start = layers.BasicConv(in_channel, base_channel, kernel_size=3, stride=1) #conv 3x3
-        self.ResBlock_1 = layers.ResBlock()
-        self.ResBlock_2 = layers.ResBlock()
-        self.ResBlock_3 = layers.ResBlock()
-        self.ResBlock_4 = layers.ResBlock()
-        self.conv_end = layers.BasicConv(in_channel, base_channel, kernel_size=3, stride=1) #conv 3x3
+        self.ResBlock_1 = layers.ResBlock(base_channel, base_channel)
+        self.ResBlock_2 = layers.ResBlock(base_channel, base_channel*2)
+        self.ResBlock_3 = layers.ResBlock(base_channel*2, base_channel*3)
+        self.ResBlock_4 = layers.ResBlock(base_channel*3, base_channel*4)
+        self.conv_end = layers.BasicConv(base_channel*4, in_channel, kernel_size=3, stride=1) #conv 3x3
     
-    def downsampling(self):
-        return layers.Downsample(self.dim, self.dim_out)
-    
+        downsample_list = list()
+        for i in range(self.downs):
+            downsample_list.append(layers.Downsample(self.dim))
+        self.downsampling = nn.Sequential(*downsample_list)
+
+        upsample_list = list()
+        for i in range(downsample_factor):
+            upsample_list.append(layers.Upsample(base_channel*4))
+        self.upsampling = nn.Sequential(*upsample_list)    
+            
     def forward(self, input):
         x = self.to_grayscale(input)
-        x = self.downsampling()
+        x = self.downsampling(x)
         x = self.conv_start(x)
         x = self.ResBlock_1(x)
-        
-        return x
+        x = self.ResBlock_2(x)
+        x = self.ResBlock_3(x)
+        guidance = self.ResBlock_4(x)
+        y = self.upsampling(guidance)
+        y = self.conv_end(y)
+        return guidance, y
     
     
 class XYDeblur(nn.Module): #baseline1
@@ -613,7 +625,6 @@ class XYDeblur(nn.Module): #baseline1
 
 class Unet_with_Guidance(nn.Module):
     def __init__(self,
-                 guidance_network,
                  dim,
                  init_dim = None,
                  out_dim = None,
@@ -633,7 +644,7 @@ class Unet_with_Guidance(nn.Module):
                  ) -> None:
         super(Unet_DDPM, self).__init__()
         
-        self.guidance = guidance_network
+        self.guidance_net = Guidance(self.downsample_factor)
         
         self.channels = channels
         self.self_condition = self_condition
@@ -644,8 +655,6 @@ class Unet_with_Guidance(nn.Module):
         
         dims = [init_dim, *map(lambda m: dim * m, dim_mults)]
         in_out = list(zip(dims[:-1], dims[1:]))
-        
-        block_klass = utility.partial(layers.ResBlock ,groups = resnet_block_groups)
         
         time_dim = dim * 4
         
@@ -687,25 +696,27 @@ class Unet_with_Guidance(nn.Module):
             attn_klass = FullAttention if layer_full_attn else layers.LinearAttention
 
             self.downs.append(nn.ModuleList([
-                block_klass(dim_in, dim_in, time_emb_dim = time_dim),
-                block_klass(dim_in, dim_in, time_emb_dim = time_dim),
+                layers.Diffusion_ResBlock(dim_in, dim_in, time_emb_dim = time_dim),
+                layers.Diffusion_ResBlock(dim_in + 32, dim_in, time_emb_dim = time_dim),
+                layers.Diffusion_ResBlock(dim_in + 32, dim_in, time_emb_dim = time_dim),
                 attn_klass(dim_in, dim_head = layer_attn_dim_head, heads = layer_attn_heads),
                 layers.Downsample(dim_in, dim_out) if not is_last else nn.Conv2d(dim_in, dim_out, 3, padding = 1)
             ]))
-
+                 # 여기부터 수정 
         mid_dim = dims[-1]
-        self.mid_block1 = block_klass(mid_dim, mid_dim, time_emb_dim = time_dim)
+        self.mid_block1 = layers.Diffusion_ResBlock(mid_dim, mid_dim, time_emb_dim = time_dim)
         self.mid_attn = FullAttention(mid_dim, heads = attn_heads[-1], dim_head = attn_dim_head[-1])
-        self.mid_block2 = block_klass(mid_dim, mid_dim, time_emb_dim = time_dim)
+        self.mid_block2 = layers.Diffusion_ResBlock(mid_dim, mid_dim, time_emb_dim = time_dim)
 
         for ind, ((dim_in, dim_out), layer_full_attn, layer_attn_heads, layer_attn_dim_head) in enumerate(zip(*map(reversed, (in_out, full_attn, attn_heads, attn_dim_head)))):
             is_last = ind == (len(in_out) - 1)
 
             attn_klass = FullAttention if layer_full_attn else layers.LinearAttention
-
+            
+            
             self.ups.append(nn.ModuleList([
-                block_klass(dim_out + dim_in, dim_out, time_emb_dim = time_dim),
-                block_klass(dim_out + dim_in, dim_out, time_emb_dim = time_dim),
+                layers.Diffusion_ResBlock(dim_out + dim_in, dim_out, time_emb_dim = time_dim),
+                layers.Diffusion_ResBlock(dim_out + dim_in, dim_out, time_emb_dim = time_dim),
                 attn_klass(dim_out, dim_head = layer_attn_dim_head, heads = layer_attn_heads),
                 layers.Upsample(dim_out, dim_in) if not is_last else  nn.Conv2d(dim_out, dim_in, 3, padding = 1)
             ]))
@@ -713,15 +724,17 @@ class Unet_with_Guidance(nn.Module):
         default_out_dim = channels * (1 if not learned_variance else 2)
         self.out_dim = utility.default(out_dim, default_out_dim)
 
-        self.final_res_block = block_klass(dim * 2, dim, time_emb_dim = time_dim)
+        self.final_res_block = layers.Diffusion_ResBlock(dim * 2, dim, time_emb_dim = time_dim)
         self.final_conv = nn.Conv2d(dim, self.out_dim, 1)
         
     @property
     def downsample_factor(self):
         return 2 ** (len(self.downs) - 1)
 
-    def forward(self, x, time, x_self_cond = None):
+    def forward(self,input, x, time, x_self_cond = None):
         assert all([utility.divisible_by(d, self.downsample_factor) for d in x.shape[-2:]]), f'your input dimensions {x.shape[-2:]} need to be divisible by {self.downsample_factor}, given the unet'
+        
+        guidance, y = self.guidance_net(input)
         
         if self.self_condition:
             x_self_cond = utility.default(x_self_cond, lambda: torch.zeros_like(x))
