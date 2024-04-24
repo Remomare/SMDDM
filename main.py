@@ -5,7 +5,7 @@ from torch.backends import cudnn
 from model.network import XYDeblur
 from train import XYDeblur_train
 from eval import XYDeblur_eval
-
+from model import network
 
 def main(config):
     cudnn.benchmark = True
@@ -29,6 +29,24 @@ def main(config):
         elif config.mode == 'test':
             XYDeblur_eval(model, config)
 
+    if config.model_name == 'DiffusionDeblurGuidance':
+        if  config.Unet == 'unet_guidance':
+            nets = network.Unet_with_Guidance(dim = config.dimension,
+                                        dim_mults = (1, 2, 4),
+                                        flash_attn=True
+                                        )
+        if  config.Unet == 'xyunet_guidance':
+            nets = network.XYUnet_with_Guidance(dim = config.dimension,
+                                            dim_mults = (1, 2, 4),
+                                            flash_attn=True
+                                            )
+        
+        model = network.GaussianDiffusion(nets, 
+                                        image_size=128, 
+                                        timesteps=1000,
+                                        sampling_timesteps= 250
+                                        )
+    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -38,6 +56,8 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, default='./dataset')
     
     # Train
+    parser.add_argument('--dimension', type=int, default=64)
+    parser.add_argument('--unet', type=str, default="unet_guidance")
     parser.add_argument('--batch_size', type=int, default=4)
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     parser.add_argument('--weight_decay', type=float, default=0)
