@@ -23,7 +23,7 @@ def XYDeblur_train(model, config):
                                  lr=config.learning_rate,
                                  weight_decay=config.weight_decay)
 
-    dataloader = train_dataloader(config.data_dir, config.batch_size, config.num_worker)
+    dataloader = train_dataloader(config.data_dir, 256, config.batch_size, config.num_worker)
     max_iter = len(dataloader)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, config.lr_steps, config.gamma)
 
@@ -108,12 +108,11 @@ def XYDeblur_train(model, config):
     torch.save({'model': model.state_dict()}, save_name)
     
 
-class Trainer(object):
+class Diffusion_Trainer(object):
     def __init__(
         self,
         config,
         diffusion_model,
-        folder,
         *,
         train_batch_size = 16,
         gradient_accumulate_every = 1,
@@ -136,7 +135,7 @@ class Trainer(object):
         num_fid_samples = 50000,
         save_best_and_latest_only = False
     ):
-        super(Trainer, self).__init__()
+        super(Diffusion_Trainer, self).__init__()
         
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print('torch device is %s' %device)
@@ -174,9 +173,9 @@ class Trainer(object):
 
         # dataset and dataloader
 
-        dataloader = train_dataloader(config.data_dir, config.batch_size, config.num_worker)
+        dataload = train_dataloader(config.data_dir, 128, config.batch_size, config.num_worker)
 
-        dataloader = self.accelerator.prepare(dataloader)
+        dataloader = self.accelerator.prepare(dataload)
         self.dataloader = utils.cycle(dataloader)
 
         # optimizer
@@ -212,7 +211,7 @@ class Trainer(object):
                 )
             self.fid_scorer = fid_score.FIDEvaluation(
                 batch_size=self.batch_size,
-                dl=self.dl,
+                dl=self.dataloader,
                 sampler=self.ema.ema_model,
                 channels=self.channels,
                 accelerator=self.accelerator,
@@ -277,7 +276,8 @@ class Trainer(object):
                 total_loss = 0.
 
                 for _ in range(self.gradient_accumulate_every):
-                    data = next(self.dl).to(device)
+                    data, label = next(self.dataloader)
+                    data = data.to(device)
 
                     with self.accelerator.autocast():
                         loss = self.model(data)

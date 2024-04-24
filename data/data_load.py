@@ -6,14 +6,14 @@ from data import data_augment
 from torchvision.transforms import functional as F
 from torch.utils.data import Dataset, DataLoader
 
-def train_dataloader(path, batch_size=64, num_workers=0, use_transform=True):
+def train_dataloader(path, model_image_size, batch_size=64, num_workers=0, use_transform=True):
     image_dir = os.path.join(path, 'train')
     # TODO: Add transform
     transform = None
     if use_transform:
         transform = data_augment.PairCompose(
             [
-                data_augment.PairRandomCrop(256),
+                data_augment.PairRandomCrop(model_image_size),
                 data_augment.PairRandomHorizontalFlip(),
                 data_augment.PairToTensor()
             ]

@@ -11,8 +11,8 @@ from functools import partial
 
 from einops import reduce
 
-from model import layers
-from model import utility
+from . import layers
+from . import utility
 
 class Unet_DDPM(nn.Module):
     def __init__(self,
@@ -634,7 +634,7 @@ class Unet_with_Guidance(nn.Module):
                  full_attn = None,    # defaults to full attention only for inner most layer
                  flash_attn = False
                  ) -> None:
-        super(Unet_DDPM, self).__init__()
+        super(Unet_with_Guidance, self).__init__()
         
         self.guidance_net = Guidance()
         
@@ -643,7 +643,7 @@ class Unet_with_Guidance(nn.Module):
         input_channels = channels * (2 if self_condition else  1)
         
         init_dim = utility.default(init_dim, dim)
-        self.init_conv = layers.BasicConv(input_channels, init_dim, 7)
+        self.init_conv = nn.Conv2d(input_channels, init_dim, 3)
         
         dims = [init_dim, *map(lambda m: dim * m, dim_mults)]
         in_out = list(zip(dims[:-1], dims[1:]))
@@ -678,7 +678,7 @@ class Unet_with_Guidance(nn.Module):
         
         FullAttention = partial(layers.Attention, flash = flash_attn)
         
-        self.down = nn.ModuleList([])
+        self.downs = nn.ModuleList([])
         self.ups = nn.ModuleList([])
         num_resolutions = len(in_out)
         
@@ -718,7 +718,7 @@ class Unet_with_Guidance(nn.Module):
         self.out_dim = utility.default(out_dim, default_out_dim)
 
         self.final_res_block = layers.Diffusion_ResBlock(dim * 2, dim, time_emb_dim = time_dim)
-        self.final_conv = nn.Conv2d(dim, self.out_dim, 1)
+        self.final_conv = nn.Conv2d(dim, self.out_dim, 3)
         
     @property
     def downsample_factor(self):
@@ -791,7 +791,7 @@ class XYUnet_with_Guidance(nn.Module):
                  full_attn = None,    # defaults to full attention only for inner most layer
                  flash_attn = False
                  ) -> None:
-        super(Unet_DDPM, self).__init__()
+        super(XYUnet_with_Guidance, self).__init__()
         
         self.guidance_net = Guidance()
         
@@ -800,7 +800,7 @@ class XYUnet_with_Guidance(nn.Module):
         input_channels = channels * (2 if self_condition else  1)
         
         init_dim = utility.default(init_dim, dim)
-        self.init_conv = layers.BasicConv(input_channels, init_dim, 7)
+        self.init_conv = nn.Conv2d(input_channels, init_dim, 3)
         
         dims = [init_dim, *map(lambda m: dim * m, dim_mults)]
         in_out = list(zip(dims[:-1], dims[1:]))
@@ -835,7 +835,7 @@ class XYUnet_with_Guidance(nn.Module):
         
         FullAttention = partial(layers.Attention, flash = flash_attn)
         
-        self.down = nn.ModuleList([])
+        self.downs = nn.ModuleList([])
         self.ups = nn.ModuleList([])
         num_resolutions = len(in_out)
         
@@ -875,7 +875,7 @@ class XYUnet_with_Guidance(nn.Module):
         self.out_dim = utility.default(out_dim, default_out_dim)
 
         self.final_res_block = layers.Diffusion_ResBlock(dim * 2, dim, time_emb_dim = time_dim)
-        self.final_conv = nn.Conv2d(dim, self.out_dim, 1)
+        self.final_conv = nn.Conv2d(dim, self.out_dim, 3)
         
     @property
     def downsample_factor(self):

@@ -96,3 +96,8 @@ class PolynomialScheduler(object):
         for i, param_group in enumerate(self.optimizer.param_groups):
             param_group['lr'] = lr
         self.epoch += 1
+        
+def cycle(dl):
+    while True:
+        for data in dl:
+            yield data
