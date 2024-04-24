@@ -108,7 +108,7 @@ def XYDeblur_train(model, config):
     
     save_name = os.path.join(config.model_save_dir, 'Final.pkl')
     torch.save({'model': model.state_dict()}, save_name)
-    
+
 
 class Diffusion_Trainer(object):
     def __init__(
