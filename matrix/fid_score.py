@@ -72,7 +72,7 @@ class FIDEvaluation:
             )
             for _ in tqdm(range(num_batches)):
                 try:
-                    real_samples = next(self.dl)
+                    real_samples, label = next(self.dl)
                 except StopIteration:
                     break
                 real_samples = real_samples.to(self.device)
@@ -93,13 +93,15 @@ class FIDEvaluation:
         if not self.dataset_stats_loaded:
             self.load_or_precalc_dataset_stats()
         self.sampler.eval()
-        batches = num_to_groups(self.n_samples, self.batch_size)
+        batches = num_to_groups(self.n_samples, 4) #batches = num_to_groups(self.n_samples, self.batch_size)
         stacked_fake_features = []
         self.print_fn(
             f"Stacking Inception features for {self.n_samples} generated samples."
         )
+        
         for batch in tqdm(batches):
-            fake_samples = self.sampler.sample(batch_size=batch)
+            data, label = next(self.dl)
+            fake_samples = self.sampler.sample(batch_size=batch, label = data)
             fake_features = self.calculate_inception_features(fake_samples)
             stacked_fake_features.append(fake_features)
         stacked_fake_features = torch.cat(stacked_fake_features, dim=0).cpu().numpy()

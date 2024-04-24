@@ -12,6 +12,8 @@ from tqdm import tqdm
 from ema_pytorch import EMA
 from accelerate import Accelerator
 
+import torchvision 
+
 import utils
 from matrix import fid_score
 from model import network, utility
@@ -123,8 +125,8 @@ class Diffusion_Trainer(object):
         ema_decay = 0.995,
         adam_betas = (0.9, 0.99),
         save_and_sample_every = 1000,
-        num_samples = 25,
-        results_folder = './results',
+        num_samples = 4,
+        results_folder = './results/DiffusionDeblurGuidance/',
         amp = False,
         mixed_precision_type = 'fp16',
         split_batches = True,
@@ -210,7 +212,7 @@ class Diffusion_Trainer(object):
                     "Consider using DDIM sampling to save time."
                 )
             self.fid_scorer = fid_score.FIDEvaluation(
-                batch_size=self.batch_size,
+                batch_size=4,
                 dl=self.dataloader,
                 sampler=self.ema.ema_model,
                 channels=self.channels,
@@ -278,6 +280,7 @@ class Diffusion_Trainer(object):
                 for _ in range(self.gradient_accumulate_every):
                     data, label = next(self.dataloader)
                     data = data.to(device)
+                    label = label.to(device)
 
                     with self.accelerator.autocast():
                         loss = self.model(data)
@@ -306,11 +309,11 @@ class Diffusion_Trainer(object):
                         with torch.inference_mode():
                             milestone = self.step // self.save_and_sample_every
                             batches = utility.num_to_groups(self.num_samples, self.batch_size)
-                            all_images_list = list(map(lambda n: self.ema.ema_model.sample(batch_size=n), batches))
+                            all_images_list = list(map(lambda n: self.ema.ema_model.sample(label = data, batch_size=n), batches))
 
                         all_images = torch.cat(all_images_list, dim = 0)
 
-                        utils.save_image(all_images, str(self.results_folder / f'sample-{milestone}.png'), nrow = int(math.sqrt(self.num_samples)))
+                        torchvision.utils.save_image(all_images, str(self.results_folder / f'sample-{milestone}.png'), nrow = int(math.sqrt(self.num_samples)))
 
                         # whether to calculate fid
 
