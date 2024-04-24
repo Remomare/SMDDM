@@ -54,7 +54,7 @@ def main(config):
         
     if config.model_name == 'XYDiffusionDeblurGuidance':
         nets = network.XYUnet_with_Guidance(dim = config.dimension,
-                                        dim_mults = (1, 2, 4),
+                                        dim_mults = (2, 3, 4),
                                         flash_attn=True
                                         )
         model = network.GaussianDiffusion(nets, 

@@ -292,7 +292,7 @@ class ResBlock(nn.Module):
 
 
 class Diffusion_ResBlock(nn.Module):
-    def __init__(self, dim, dim_out, base_dim = 32, *, time_emb_dim = None):
+    def __init__(self, dim, dim_out, base_dim = 64, *, time_emb_dim = None):
         super().__init__()
         self.mlp = nn.Sequential(
             nn.SiLU(),
@@ -305,7 +305,7 @@ class Diffusion_ResBlock(nn.Module):
         self.block = BasicConv(dim, dim_out, kernel_size=3, stride=1)
         self.activation = nn.SiLU(inplace=True)
         
-        self.guidance_conv = BasicConv(guidance_base_channel*4, self.base_channel, kernel_size=1, stride=1)
+        self.guidance_conv = BasicConv(guidance_base_channel, self.base_channel, kernel_size=1, stride=1)
 
     def forward(self, x, guidance = None , time_emb = None):
 
