@@ -869,7 +869,7 @@ class XYUnet_with_Guidance(nn.Module):
             attn_klass = FullAttention if layer_full_attn else layers.LinearAttention
             
             self.ups.append(nn.ModuleList([
-                layers.Diffusion_ResBlock(dim_out + dim_in, dim_in, dim_in, time_emb_dim = time_dim),
+                layers.Diffusion_ResBlock(dim_in + dim_in, dim_in, dim_in, time_emb_dim = time_dim),
                 layers.Diffusion_ResBlock(dim_in, dim_in, dim_in, time_emb_dim = time_dim),
                 attn_klass(dim_in, dim_head = layer_attn_dim_head, heads = layer_attn_heads),
                 layers.Upsample(dim_out, dim_in)
