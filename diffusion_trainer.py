@@ -23,6 +23,16 @@ from model import utility
 from val import diffusion_valid
 
 def main(args):
+    
+    if not os.path.exists('results/'):
+        os.makedirs(args.model_save_dir)
+    if not os.path.exists('results/' + args.model_name + '/'):
+        os.makedirs('results/' + args.model_name + '/')
+    if not os.path.exists(args.model_save_dir):
+        os.makedirs(args.model_save_dir)
+    if not os.path.exists(args.result_dir):
+        os.makedirs(args.result_dir)
+
     # logging
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
