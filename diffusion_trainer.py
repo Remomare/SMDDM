@@ -208,7 +208,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--store_opt', type=bool, default=True)
     parser.add_argument('--num_subband', type=int, default=2)
-    parser.add_argument('--store_freq', type=int, default=300)
+    parser.add_argument('--store_freq', type=int, default=100)
 
     parser.add_argument('--convert_image_to', type=bool, default=None)
     
