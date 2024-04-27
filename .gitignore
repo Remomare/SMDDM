@@ -158,3 +158,5 @@ cython_debug/
 
 runs
 results
+
+easy_train.py

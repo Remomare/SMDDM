@@ -1,6 +1,6 @@
 import torch
 from data import data_load
-from model import network
+from model import network, layers
 import argparse
 import logging
 """
@@ -60,12 +60,12 @@ def main(args):
     
     
     # model
-    nets = network.XYUnet_with_Guidance(dim = args.dimension,
-                                      dim_mults = (1, 2, 4),
-                                      flash_attn=True
-                                    ).to(device)
+    nets = network.XYUnet_without_Guidance(dim = args.dimension,
+                                            dim_mults = (1, 2, 4),
+                                            flash_attn=True
+                                          ).to(device)
     
-    diffusion = network.GaussianDiffusion(nets, 
+    diffusion = layers.GaussianDiffusion(nets, 
                                         image_size=128, 
                                         timesteps=1000,
                                         sampling_timesteps= 250
@@ -141,9 +141,9 @@ def main(args):
             
             if (iter_idx + 1) % args.print_freq == 0:
                 lr = check_lr(optimizer)
-                print("Time: %7.4f Epoch: %03d Iter: %4d/%4d LR: %.10f Loss: %7.4f" % (iter_timer.toc(), epoch_idx,
+                print("Time: %7.4f Epoch: %03d Iter: %4d/%4d LR: %.10f Loss: %.4f" % (iter_timer.toc(), epoch_idx,
                                                                              iter_idx + 1, max_iter, lr,
-                                                                             iter_adder.average()))
+                                                                             loss))
                 writer.add_scalar('Loss', iter_adder.average(), iter_idx + (epoch_idx-1)* max_iter)
                 iter_timer.tic()
                 iter_adder.reset()
@@ -165,8 +165,9 @@ def main(args):
             
               
             val = diffusion_valid(diffusion, args, epoch_idx)
-            print('%03d epoch \n Average PSNR %.2f dB' % (epoch_idx, val))
-            writer.add_scalar('PSNR', val, epoch_idx)
+            print('end %03d epoch val' % (epoch_idx))
+            #print('%03d epoch \n Average PSNR %.2f dB' % (epoch_idx, val))
+            #writer.add_scalar('PSNR', val, epoch_idx)
             
 
             save_name = os.path.join(args.model_save_dir, 'model_%d.pkl' % epoch_idx)
@@ -190,13 +191,13 @@ if __name__ == "__main__":
     parser.add_argument('-log_wandb_ckpt', action='store_true')
     parser.add_argument('-log_eval', action='store_true')
     
-    parser.add_argument('--model_name', type=str, default='DiffusionXYDeblur')
+    parser.add_argument('--model_name', type=str, default='DiffusionXYDeblurwithoutguidance')
     parser.add_argument('--data_dir', type=str, default='./dataset')
     
     # Train
     parser.add_argument('--dimension', type=int, default=64)
     parser.add_argument('--batch_size', type=int, default=4)
-    parser.add_argument('--learning_rate', type=float, default=1e-4)
+    parser.add_argument('--learning_rate', type=float, default=1e-2)
     parser.add_argument('--weight_decay', type=float, default=0)
     parser.add_argument('--num_epoch', type=int, default=3000)
     parser.add_argument('--print_freq', type=int, default=100)

@@ -5,7 +5,7 @@ from torch.backends import cudnn
 from model.network import XYDeblur
 from train import XYDeblur_train, Diffusion_Trainer
 from eval import XYDeblur_eval
-from model import network
+from model import network, layers
 
 def main(config):
     cudnn.benchmark = True
@@ -73,12 +73,35 @@ def main(config):
             calculate_fid = True   
         )
         trainer.train()
+        
+    if config.model_name == 'XYDiffusionDeblur':
+        nets = network.XYUnet_without_Guidance(dim = config.dimension,
+                                        dim_mults = (2, 3, 4),
+                                        flash_attn=True
+                                        )
+        model = layers.GaussianDiffusion(nets, 
+                                        image_size=128, 
+                                        timesteps=1000,
+                                        sampling_timesteps= 250
+                                        )
+        trainer = Diffusion_Trainer(
+            config,
+            model,
+            train_batch_size = 32,
+            train_lr = 8e-5,
+            train_num_steps = 700000,         # total training steps
+            gradient_accumulate_every = 2,    # gradient accumulation steps
+            ema_decay = 0.995,                # exponential moving average decay
+            amp = True,                       # turn on mixed precision
+            calculate_fid = True   
+        )
+        trainer.train()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Directories
-    parser.add_argument('--model_name', type=str, default='DiffusionDeblurGuidance')
+    parser.add_argument('--model_name', type=str, default='XYDiffusionDeblur')
     parser.add_argument('--data_dir', type=str, default='./dataset')
     
     # Train

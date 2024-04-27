@@ -306,14 +306,32 @@ class Diffusion_Trainer(object):
                     if self.step != 0 and utility.divisible_by(self.step, self.save_and_sample_every):
                         self.ema.ema_model.eval()
 
+                        data, label = next(self.dataloader)
+                        
                         with torch.inference_mode():
                             milestone = self.step // self.save_and_sample_every
                             batches = utility.num_to_groups(self.num_samples, self.batch_size)
-                            all_images_list = list(map(lambda n: self.ema.ema_model.sample(label = data, batch_size=n), batches))
+                            pred = self.ema.ema_model.super_resolution(data)
+                            
+                            save_name = os.path.join(self.results_folder, '%d' %self.step + '.png')
+                            save_name_R = os.path.join(self.results_folder, '%d' %self.step + '_Result.png')
+                            save_name_I = os.path.join(self.results_folder, '%d' %self.step + '_Input.png')
+                            
+                            label = F.to_pil_image(label.squeeze(0).cpu(), 'RGB')
+                            label.save(save_name)
+                            
+                            input_i = F.to_pil_image(data.squeeze(0).cpu(), 'RGB')
+                            input_i.save(save_name_I)
 
-                        all_images = torch.cat(all_images_list, dim = 0)
+                            pred= torch.clamp(pred, 0, 1)
+                            print(pred.size())
+                            result = F.to_pil_image(pred.squeeze(0).cpu(), 'RGB')
+                            result.save(save_name_R)
+            
 
-                        torchvision.utils.save_image(all_images, str(self.results_folder / f'sample-{milestone}.png'), nrow = int(math.sqrt(self.num_samples)))
+                        #all_images = torch.cat(all_images_list, dim = 0)
+
+                        #torchvision.utils.save_image(all_images, str(self.results_folder / f'sample-{milestone}.png'), nrow = int(math.sqrt(self.num_samples)))
 
                         # whether to calculate fid
 

@@ -34,7 +34,6 @@ def XYDeblur_valid(model, config, ep):
                         save_name = os.path.join(config.result_dir, '%d' %ep, '%d' % (idx) + '.png')
                         save_name_R = os.path.join(config.result_dir, '%d' %ep, '%d' % (idx) + '_Result.png')
                         save_name_I = os.path.join(config.result_dir, '%d' %ep, '%d' % (idx) + '_Input.png')
-                        save_name_R_resize = os.path.join(config.result_dir, '%d' %ep, '%d' % (idx) + '_Result_resize.png')
 
 
                         label = F.to_pil_image(label_img.squeeze(0).cpu(), 'RGB')
@@ -46,9 +45,7 @@ def XYDeblur_valid(model, config, ep):
                         pred = torch.clamp(pred, 0, 1)
                         result = F.to_pil_image(pred.squeeze(0).cpu(), 'RGB')
                         result.save(save_name_R)
-                        
-                        result_resize = F.to_pil_image(F.resize(pred.squeeze(0).cpu(), (1280,720)), 'RGB')
-                        result.save(save_name_R_resize)
+
                         
                         for num_sub in range(config.num_subband):
                             tmp_save_name = os.path.join(config.result_dir, '%d' %ep, '%d' % (idx) + '_' + str(num_sub) + '.mat')
@@ -99,15 +96,16 @@ def diffusion_valid(diffusion, args, epoch_index):
                         input_i.save(save_name_I)
 
                         pred= torch.clamp(pred, 0, 1)
+                        print(pred.size())
                         result = F.to_pil_image(pred.squeeze(0).cpu(), 'RGB')
                         result.save(save_name_R)
             
-                        result_resize = F.to_pil_image(F.resize(pred.squeeze(0).cpu(), (1280,720)), 'RGB')
+                        result_resize = F.to_pil_image(F.resize(pred.squeeze(0).cpu(), (720,1280) ), 'RGB')
                         result_resize.save(save_name_R_resize)
                         
-            #psnr_adder(psnr)
+            psnr_adder(epoch_index)
             if idx % 100 == 0:
                 print('\r%03d'%idx, end=' ')
     print('\n')
     diffusion.train()
-    return psnr_adder.average()
+    return psnr_adder

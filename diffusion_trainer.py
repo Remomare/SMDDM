@@ -165,8 +165,9 @@ def main(args):
             
               
             val = diffusion_valid(diffusion, args, epoch_idx)
-            print('%03d epoch \n Average PSNR %.2f dB' % (epoch_idx, val))
-            writer.add_scalar('PSNR', val, epoch_idx)
+            print('end %03d epoch val' % (epoch_idx))
+            #print('%03d epoch \n Average PSNR %.2f dB' % (epoch_idx, val))
+            #writer.add_scalar('PSNR', val, epoch_idx)
             
 
             save_name = os.path.join(args.model_save_dir, 'model_%d.pkl' % epoch_idx)
@@ -196,7 +197,7 @@ if __name__ == "__main__":
     # Train
     parser.add_argument('--dimension', type=int, default=64)
     parser.add_argument('--batch_size', type=int, default=4)
-    parser.add_argument('--learning_rate', type=float, default=1e-4)
+    parser.add_argument('--learning_rate', type=float, default=1e-2)
     parser.add_argument('--weight_decay', type=float, default=0)
     parser.add_argument('--num_epoch', type=int, default=3000)
     parser.add_argument('--print_freq', type=int, default=100)
