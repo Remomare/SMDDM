@@ -16,6 +16,7 @@ from einops.layers import torch as einops_torch
 
 import torch.nn.functional as F
 
+
 from . import utility 
 from .utility import *
 
@@ -631,11 +632,11 @@ class GaussianDiffusion(nn.Module):
 
         if not self.conditional:
             shape = x_in
-            b = shape[0]
+            b = shape.size()[0]
             img = torch.randn(shape.size(), device=device)
             ret_img = img
             for i in tqdm(reversed(range(0, self.num_timesteps)), desc='sampling loop time step', total=self.num_timesteps):
-                img = self.p_sample(img, torch.full((b,i), i, device=device, dtype=torch.long))
+                img = self.p_sample(img, torch.full((b,), i, device=device, dtype=torch.long))
                 if i % sample_inter == 0:
                     ret_img = torch.cat([ret_img, img], dim=0)
             return img
@@ -656,13 +657,13 @@ class GaussianDiffusion(nn.Module):
 
     @torch.inference_mode()
     def ddim_sample(self, shape, return_all_timesteps = False):
-        batch, device, total_timesteps, sampling_timesteps, eta, objective = shape[0], self.device, self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta, self.objective
+        batch, device, total_timesteps, sampling_timesteps, eta, objective = shape.size()[0], self.device, self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta, self.objective
 
         times = torch.linspace(-1, total_timesteps - 1, steps = sampling_timesteps + 1)   # [-1, 0, 1, 2, ..., T-1] when sampling_timesteps == total_timesteps
         times = list(reversed(times.int().tolist()))
         time_pairs = list(zip(times[:-1], times[1:])) # [(T-1, T-2), (T-2, T-3), ..., (1, 0), (0, -1)]
 
-        img = torch.randn(shape, device = device)
+        img = torch.randn(shape.size(), device = device)
         imgs = [img]
 
         x_start = None
@@ -697,10 +698,10 @@ class GaussianDiffusion(nn.Module):
         return ret
 
     @torch.inference_mode()
-    def sample(self, batch_size = 16, return_all_timesteps = False):
+    def sample(self, x_in ,batch_size = 16, return_all_timesteps = False ):
         (h, w), channels = self.image_size, self.channels
         sample_fn = self.p_sample_loop if not self.is_ddim_sampling else self.ddim_sample
-        return sample_fn((batch_size, channels, h, w), return_all_timesteps = return_all_timesteps)
+        return sample_fn( x_in, return_all_timesteps = return_all_timesteps)
 
 
     @torch.no_grad()
@@ -787,6 +788,5 @@ class GaussianDiffusion(nn.Module):
         b, c, h, w, device, img_size, = *img.shape, img.device, self.image_size
         assert h == img_size[0] and w == img_size[1], f'height and width of image must be {img_size}'
         t = torch.randint(0, self.num_timesteps, (b,), device=device).long()
-
         img = self.normalize(img)
         return self.p_losses(img, t, *args, **kwargs)

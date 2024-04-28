@@ -3,7 +3,7 @@ import torch
 import math
 
 from pathlib import Path
-from data.data_load import train_dataloader
+from data.data_load import train_dataloader, test_dataloader
 from utils import Adder, Timer, check_lr
 from torch.utils.tensorboard import SummaryWriter
 from val import XYDeblur_valid
@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from ema_pytorch import EMA
 from accelerate import Accelerator
+from torchvision.transforms import functional as visionF
 
 import torchvision 
 
@@ -124,7 +125,7 @@ class Diffusion_Trainer(object):
         ema_update_every = 10,
         ema_decay = 0.995,
         adam_betas = (0.9, 0.99),
-        save_and_sample_every = 1000,
+        save_and_sample_every = 100,
         num_samples = 4,
         results_folder = './results/DiffusionDeblurGuidance/',
         amp = False,
@@ -176,8 +177,10 @@ class Diffusion_Trainer(object):
         # dataset and dataloader
 
         dataload = train_dataloader(config.data_dir, 128, config.batch_size, config.num_worker)
-
+        testload = test_dataloader(config.data_dir, 128, 1, config.num_worker)
         dataloader = self.accelerator.prepare(dataload)
+        testloader = self.accelerator.prepare(testload)
+        self.testloader = utils.cycle(testloader)
         self.dataloader = utils.cycle(dataloader)
 
         # optimizer
@@ -306,28 +309,28 @@ class Diffusion_Trainer(object):
                     if self.step != 0 and utility.divisible_by(self.step, self.save_and_sample_every):
                         self.ema.ema_model.eval()
 
-                        data, label = next(self.dataloader)
+                        data, label = next(self.testloader)
                         
                         with torch.inference_mode():
                             milestone = self.step // self.save_and_sample_every
-                            batches = utility.num_to_groups(self.num_samples, self.batch_size)
-                            pred = self.ema.ema_model.super_resolution(data)
+                            pred = self.ema.ema_model.super_resolution(data) #한 배치씩 넣는 방법 수정 필요
                             
-                            save_name = os.path.join(self.results_folder, '%d' %self.step + '.png')
-                            save_name_R = os.path.join(self.results_folder, '%d' %self.step + '_Result.png')
-                            save_name_I = os.path.join(self.results_folder, '%d' %self.step + '_Input.png')
+                            save_name = os.path.join(self.results_folder, '%d' %(self.step) + '.png')
+                            save_name_R = os.path.join(self.results_folder, '%d' %(self.step) + '_Result.png')
+                            save_name_I = os.path.join(self.results_folder, '%d' %(self.step) + '_Input.png')
                             
-                            label = F.to_pil_image(label.squeeze(0).cpu(), 'RGB')
-                            label.save(save_name)
                             
-                            input_i = F.to_pil_image(data.squeeze(0).cpu(), 'RGB')
+                            label_img = visionF.to_pil_image(label.squeeze(0).cpu(), 'RGB')
+                            label_img.save(save_name)
+                            
+                            input_i = visionF.to_pil_image(data.squeeze(0).cpu(), 'RGB')
                             input_i.save(save_name_I)
 
                             pred= torch.clamp(pred, 0, 1)
-                            print(pred.size())
-                            result = F.to_pil_image(pred.squeeze(0).cpu(), 'RGB')
+                            result = visionF.to_pil_image(pred.squeeze(0).cpu(), 'RGB')
                             result.save(save_name_R)
-            
+                               
+                
 
                         #all_images = torch.cat(all_images_list, dim = 0)
 

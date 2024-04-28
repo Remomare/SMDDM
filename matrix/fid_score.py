@@ -101,7 +101,7 @@ class FIDEvaluation:
         
         for batch in tqdm(batches):
             data, label = next(self.dl)
-            fake_samples = self.sampler.sample(batch_size=batch, label = data)
+            fake_samples = self.sampler.sample(data, batch_size=batch )
             fake_features = self.calculate_inception_features(fake_samples)
             stacked_fake_features.append(fake_features)
         stacked_fake_features = torch.cat(stacked_fake_features, dim=0).cpu().numpy()
