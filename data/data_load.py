@@ -33,7 +33,7 @@ def test_dataloader(path, model_image_size, batch_size=1, num_workers=0):
     image_dir = os.path.join(path, 'test')
     transform = transforms.Compose(
             [
-                transforms.Resize(size = (model_image_size, model_image_size)),
+                transforms.RandomCrop(size = (model_image_size, model_image_size)),
                 transforms.ToTensor()
             ]
         )

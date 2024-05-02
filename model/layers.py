@@ -574,8 +574,8 @@ class GaussianDiffusion(nn.Module):
         posterior_log_variance_clipped = extract(self.posterior_log_variance_clipped, t, x_t.shape)
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
-    def model_predictions(self, x, t, x_self_cond = None, clip_x_start = False, rederive_pred_noise = False):
-        model_output = self.model(x, t, x_self_cond)
+    def model_predictions(self,x_in, x, t, x_self_cond = None, clip_x_start = False, rederive_pred_noise = False):
+        model_output = self.model(x_in, x, t, x_self_cond)
         maybe_clip = partial(torch.clamp, min = -1., max = 1.) if clip_x_start else identity
 
         if self.objective == 'pred_noise':
@@ -599,13 +599,13 @@ class GaussianDiffusion(nn.Module):
 
         return ModelPrediction(pred_noise, x_start)
 
-    def p_mean_variance(self, x, t, clip_denoised: bool, condition_x=None):
+    def p_mean_variance(self,x_in, x, t, clip_denoised: bool, condition_x=None):
         if condition_x is not None:
             x_recon = self.predict_start_from_noise(
                 x, t=t, noise=self.model(torch.cat([condition_x, x], dim=1), t))
         else:
             x_recon = self.predict_start_from_noise(
-                x, t=t, noise=self.model(x, t))
+                x, t=t, noise=self.model(x_in, x, t))
 
         if clip_denoised:
             x_recon.clamp_(-1., 1.)
@@ -615,9 +615,9 @@ class GaussianDiffusion(nn.Module):
         return model_mean, posterior_variance, posterior_log_variance
 
     @torch.inference_mode()
-    def p_sample(self, x, t, clip_denoised=True, repeat_noise=False, condition_x=None):
+    def p_sample(self, x_in, x, t, clip_denoised=True, repeat_noise=False, condition_x=None):
         b, *_, device = *x.shape, x.device
-        model_mean, _, model_log_variance = self.p_mean_variance(
+        model_mean, _, model_log_variance = self.p_mean_variance(x_in=x_in,
             x=x, t=t, clip_denoised=clip_denoised, condition_x=condition_x)
         noise = noise_like(x.shape, device, repeat_noise)
         # no noise when t == 0
@@ -636,7 +636,7 @@ class GaussianDiffusion(nn.Module):
             img = torch.randn(shape.size(), device=device)
             ret_img = img
             for i in tqdm(reversed(range(0, self.num_timesteps)), desc='sampling loop time step', total=self.num_timesteps):
-                img = self.p_sample(img, torch.full((b,), i, device=device, dtype=torch.long))
+                img = self.p_sample(x_in, img, torch.full((b,), i, device=device, dtype=torch.long))
                 if i % sample_inter == 0:
                     ret_img = torch.cat([ret_img, img], dim=0)
             return img
@@ -671,7 +671,7 @@ class GaussianDiffusion(nn.Module):
         for time, time_next in tqdm(time_pairs, desc = 'sampling loop time step'):
             time_cond = torch.full((batch,), time, device = device, dtype = torch.long)
             self_cond = x_start if self.self_condition else None
-            pred_noise, x_start, *_ = self.model_predictions(img, time_cond, self_cond, clip_x_start = True, rederive_pred_noise = True)
+            pred_noise, x_start, *_ = self.model_predictions(shape, img, time_cond, self_cond, clip_x_start = True, rederive_pred_noise = True)
 
             if time_next < 0:
                 img = x_start
@@ -766,7 +766,7 @@ class GaussianDiffusion(nn.Module):
 
         # predict and take gradient step
 
-        model_out = self.model(x, t, x_self_cond)
+        model_out = self.model(x_start, x, t, x_self_cond)
 
         if self.objective == 'pred_noise':
             target = noise

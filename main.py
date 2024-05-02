@@ -56,7 +56,7 @@ def main(config):
                                         dim_mults = (2, 3, 4),
                                         flash_attn=True
                                         )
-        model = network.GaussianDiffusion(nets, 
+        model = layers.GaussianDiffusion(nets, 
                                         image_size=128, 
                                         timesteps=1000,
                                         sampling_timesteps= 250
@@ -64,6 +64,7 @@ def main(config):
         trainer = Diffusion_Trainer(
             config,
             model,
+            results_folder=config.result_dir,
             train_batch_size = 32,
             train_lr = 8e-5,
             train_num_steps = 700000,         # total training steps
@@ -101,13 +102,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Directories
-    parser.add_argument('--model_name', type=str, default='XYDiffusionDeblur')
+    parser.add_argument('--model_name', type=str, default='XYDeblur')
     parser.add_argument('--data_dir', type=str, default='./dataset')
     
     # Train
     parser.add_argument('--dimension', type=int, default=64)
     parser.add_argument('--batch_size', type=int, default=4)
-    parser.add_argument('--learning_rate', type=float, default=1e-4)
+    parser.add_argument('--learning_rate', type=float, default=1e-3)
     parser.add_argument('--weight_decay', type=float, default=0)
     parser.add_argument('--num_epoch', type=int, default=3000)
     parser.add_argument('--print_freq', type=int, default=100)

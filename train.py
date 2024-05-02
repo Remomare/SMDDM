@@ -94,7 +94,7 @@ def XYDeblur_train(model, config):
         epoch_adder.reset()
         scheduler.step()
         if epoch_idx % config.valid_freq == 0:
-            val = XYDeblur_valid(model, config, epoch_idx)
+            val = XYDeblur_valid(model, 256, config, epoch_idx)
             print('%03d epoch \n Average PSNR %.2f dB' % (epoch_idx, val))
             writer.add_scalar('PSNR', val, epoch_idx)
 
@@ -125,7 +125,7 @@ class Diffusion_Trainer(object):
         ema_update_every = 10,
         ema_decay = 0.995,
         adam_betas = (0.9, 0.99),
-        save_and_sample_every = 100,
+        save_and_sample_every = 1000,
         num_samples = 4,
         results_folder = './results/DiffusionDeblurGuidance/',
         amp = False,
@@ -135,7 +135,7 @@ class Diffusion_Trainer(object):
         calculate_fid = True,
         inception_block_idx = 2048,
         max_grad_norm = 1.,
-        num_fid_samples = 50000,
+        num_fid_samples = 100,
         save_best_and_latest_only = False
     ):
         super(Diffusion_Trainer, self).__init__()
@@ -248,13 +248,13 @@ class Diffusion_Trainer(object):
             'scaler': self.accelerator.scaler.state_dict() if utility.exists(self.accelerator.scaler) else None
         }
 
-        torch.save(data, str(self.results_folder / f'model-{milestone}.pt'))
+        torch.save(data, str(self.results_folder / 'weights' / f'model-{milestone}.pt'))
 
     def load(self, milestone):
         accelerator = self.accelerator
         device = accelerator.device
 
-        data = torch.load(str(self.results_folder / f'model-{milestone}.pt'), map_location=device)
+        data = torch.load(str(self.results_folder / 'weights' / f'model-{milestone}.pt'), map_location=device)
 
         model = self.accelerator.unwrap_model(self.model)
         model.load_state_dict(data['model'])
@@ -312,12 +312,13 @@ class Diffusion_Trainer(object):
                         data, label = next(self.testloader)
                         
                         with torch.inference_mode():
-                            milestone = self.step // self.save_and_sample_every
-                            pred = self.ema.ema_model.super_resolution(data) #한 배치씩 넣는 방법 수정 필요
                             
-                            save_name = os.path.join(self.results_folder, '%d' %(self.step) + '.png')
-                            save_name_R = os.path.join(self.results_folder, '%d' %(self.step) + '_Result.png')
-                            save_name_I = os.path.join(self.results_folder, '%d' %(self.step) + '_Input.png')
+                            milestone = self.step // self.save_and_sample_every
+                            pred = self.ema.ema_model.super_resolution(data) 
+                            
+                            save_name = os.path.join(self.results_folder,'eval', '%d' %(self.step) + '.png')
+                            save_name_R = os.path.join(self.results_folder,'eval', '%d' %(self.step) + '_Result.png')
+                            save_name_I = os.path.join(self.results_folder,'eval', '%d' %(self.step) + '_Input.png')
                             
                             
                             label_img = visionF.to_pil_image(label.squeeze(0).cpu(), 'RGB')

@@ -884,7 +884,7 @@ class XYUnet_with_Guidance(nn.Module):
         default_out_dim = channels * (1 if not learned_variance else 2)
         self.out_dim = utility.default(out_dim, default_out_dim)
 
-        self.final_res_block = layers.Diffusion_ResBlock(dim * 2, dim, time_emb_dim = time_dim)
+        self.final_res_block = layers.Diffusion_ResBlock(dim, dim, time_emb_dim = time_dim)
         self.final_conv = nn.Conv2d(dim, self.out_dim, 3, padding=1)
         
     @property
@@ -899,9 +899,10 @@ class XYUnet_with_Guidance(nn.Module):
         if self.self_condition:
             x_self_cond = utility.default(x_self_cond, lambda: torch.zeros_like(x))
             x = torch.cat((x_self_cond, x), dim = 1)
-
-        x = self.init_conv(x)
+        
         r = x.clone()
+        x = self.init_conv(x)
+        
 
         t = self.time_mlp(time)
 
@@ -949,17 +950,13 @@ class XYUnet_with_Guidance(nn.Module):
             
             x_trans = block2(x_trans, None, t)
 
-        x = torch.cat((x, r), dim = 1)
-        
-        x_trans = torch.cat((x_trans, r.transpose(2,3).flip(2)), dim=1)
-
         x = self.final_res_block(x, None, t)
         x_trans = self.final_res_block(x_trans, None, t)
         
         x = self.final_conv(x)
         x_trans = self.final_conv(x_trans)
         
-        return x + x_trans
+        return r + x + x_trans 
 
 
 class XYUnet_without_Guidance(nn.Module):
